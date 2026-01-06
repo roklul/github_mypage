@@ -3,13 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>網站系統更新中 | System Upgrade</title>
-    <!-- 引入 Tailwind CSS 進行快速排版 -->
+    <title>Git-Based CMS | 管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Font Awesome 圖標 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 引入 Google Fonts: Noto Sans TC -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
@@ -17,132 +14,349 @@
                 extend: {
                     fontFamily: {
                         sans: ['"Noto Sans TC"', 'sans-serif'],
-                    },
-                    animation: {
-                        'blob': 'blob 7s infinite',
-                    },
-                    keyframes: {
-                        blob: {
-                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
-                        }
+                        mono: ['"JetBrains Mono"', 'monospace'],
                     }
                 }
             }
         }
     </script>
     <style>
-        /* 玻璃擬態背景效果 */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        /* 隱藏捲軸但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
         }
-        .dark-mode .glass-card {
-            background: rgba(17, 24, 39, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 編輯器樣式 */
+        .editor-bg {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen relative overflow-hidden flex items-center justify-center selection:bg-indigo-500 selection:text-white">
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
 
-    <!-- 背景裝飾動畫 (Blob Animation) -->
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-        <div class="absolute top-0 left-1/4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div class="absolute top-0 right-1/4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div class="absolute -bottom-8 left-1/3 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+    <!-- Toast 通知容器 -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- ========================================== -->
+    <!-- 1. 登入畫面 (預設顯示) -->
+    <!-- ========================================== -->
+    <div id="login-view" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
+        <div class="bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-2xl shadow-2xl text-center max-w-md w-full mx-4">
+            <div class="mb-6 inline-block p-4 rounded-full bg-indigo-500/20 text-indigo-300">
+                <i class="fa-brands fa-github text-5xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">CMS 管理系統</h1>
+            <p class="text-gray-400 mb-8">請使用 GitHub 帳號登入以管理您的內容</p>
+            
+            <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-6 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg flex items-center justify-center">
+                <i class="fa-solid fa-right-to-bracket mr-2"></i> GitHub Login
+            </button>
+            <p class="mt-4 text-xs text-gray-500">Only authorized admins can access.</p>
+        </div>
     </div>
 
-    <!-- 主要內容卡片 -->
-    <main class="glass-card w-full max-w-lg mx-4 p-8 rounded-2xl shadow-2xl transform transition-all hover:scale-[1.01]">
+    <!-- ========================================== -->
+    <!-- 2. 主控台畫面 (登入後顯示) -->
+    <!-- ========================================== -->
+    <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
         
-        <!-- 狀態標籤 -->
-        <div class="flex justify-between items-center mb-8">
-            <div class="flex items-center space-x-2 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+        <!-- 導航列 -->
+        <nav class="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm z-10">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold">Z</div>
+                <span class="font-bold text-gray-700 tracking-wide">CMS Console</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="user-display" class="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                    <i class="fa-solid fa-user mr-2"></i>Loading...
                 </span>
-                <span>Deploying</span>
+                <button onclick="logout()" class="text-gray-400 hover:text-red-500 transition-colors text-sm">
+                    <i class="fa-solid fa-power-off"></i> 登出
+                </button>
             </div>
-            <div class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" title="GitHub Pages">
-                <i class="fa-brands fa-github text-xl"></i>
-            </div>
-        </div>
+        </nav>
 
-        <!-- 圖標區域 -->
-        <div class="text-center mb-6">
-            <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-lg text-white mb-4">
-                <i class="fa-solid fa-server text-3xl"></i>
-            </div>
-            <div class="absolute top-28 right-1/2 translate-x-12 translate-y-2">
-                <i class="fa-solid fa-gear fa-spin text-gray-400 text-xl"></i>
-            </div>
-        </div>
+        <!-- 主要內容區 -->
+        <div class="flex flex-1 overflow-hidden">
+            
+            <!-- 左側設定欄 -->
+            <aside class="w-80 bg-gray-50 border-r border-gray-200 p-6 flex flex-col overflow-y-auto z-0">
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Target Repository</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Owner (帳號)</label>
+                        <input type="text" id="input-owner" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border" placeholder="e.g. yourname">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Repo (專案名)</label>
+                        <input type="text" id="input-repo" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border" placeholder="e.g. my-blog">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Path (檔案路徑)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="input-path" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border" placeholder="data/posts.json">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">包含副檔名，如 .json 或 .md</p>
+                    </div>
 
-        <!-- 文字內容 -->
-        <div class="text-center">
-            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 mb-3">
-                系統升級中
-            </h1>
-            <h2 class="text-xl text-gray-600 font-medium mb-4">New Experience Coming Soon</h2>
-            <p class="text-gray-500 leading-relaxed mb-8">
-                我們正在整合前端頁面與 Zeabur 後端服務。<br>
-                資料庫連線建置中，請稍後回來體驗全新功能。
-            </p>
-        </div>
-
-        <!-- 系統狀態檢測 (模擬) -->
-        <div class="border-t border-gray-200 pt-6">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">System Status</h3>
-            <div class="space-y-3">
-                <!-- 項目 1 -->
-                <div class="flex justify-between items-center text-sm">
-                    <span class="flex items-center text-gray-600">
-                        <i class="fa-brands fa-html5 text-orange-500 mr-2"></i> Frontend (GitHub Pages)
-                    </span>
-                    <span class="text-green-500 font-medium flex items-center">
-                        <i class="fa-solid fa-check-circle mr-1"></i> Online
-                    </span>
+                    <button onclick="loadFile()" id="btn-load" class="w-full mt-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded shadow-sm transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-cloud-arrow-down mr-2"></i> 讀取檔案
+                    </button>
                 </div>
-                <!-- 項目 2 -->
-                <div class="flex justify-between items-center text-sm">
-                    <span class="flex items-center text-gray-600">
-                        <i class="fa-brands fa-node-js text-green-600 mr-2"></i> Backend (Zeabur / Node.js)
-                    </span>
-                    <span class="text-indigo-500 font-medium flex items-center animate-pulse">
-                        <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Connecting...
-                    </span>
-                </div>
-                <!-- 項目 3 -->
-                <div class="flex justify-between items-center text-sm">
-                    <span class="flex items-center text-gray-600">
-                        <i class="fa-solid fa-database text-blue-500 mr-2"></i> Content (GitHub Repo)
-                    </span>
-                    <span class="text-gray-400 font-medium">
-                        Waiting
-                    </span>
-                </div>
-            </div>
-        </div>
 
-        <!-- 底部 -->
-        <div class="mt-8 text-center">
-            <button onclick="window.location.reload()" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg shadow transition-all transform active:scale-95 text-sm font-medium">
-                <i class="fa-solid fa-rotate-right mr-2"></i> 重新整理
-            </button>
-            <p class="mt-4 text-xs text-gray-400">© 2025 Project Update. Hosted on GitHub Pages.</p>
-        </div>
+                <div class="mt-auto pt-6 border-t border-gray-200">
+                    <div class="bg-blue-50 text-blue-700 p-3 rounded text-xs leading-relaxed">
+                        <i class="fa-solid fa-circle-info mr-1"></i>
+                        提示：修改後的內容將直接 Commit 到您的 GitHub Repo。請謹慎操作。
+                    </div>
+                </div>
+            </aside>
 
-    </main>
+            <!-- 右側編輯區 -->
+            <main class="flex-1 flex flex-col bg-white relative">
+                <!-- 檔案資訊 Bar -->
+                <div class="h-12 border-b border-gray-200 flex items-center justify-between px-6 bg-gray-50">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fa-regular fa-file-code mr-2"></i>
+                        <span id="current-file-label" class="font-mono">尚未選擇檔案</span>
+                    </div>
+                    <div class="flex gap-2">
+                         <button onclick="saveFile()" id="btn-save" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-1.5 rounded shadow transition-colors flex items-center opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i> 儲存變更
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 編輯器 -->
+                <textarea id="code-editor" class="flex-1 w-full p-6 font-mono text-sm leading-6 resize-none focus:outline-none editor-bg" spellcheck="false" placeholder="// 載入檔案後，內容將顯示於此..."></textarea>
+                
+                <!-- 遮罩 (讀取中顯示) -->
+                <div id="loading-overlay" class="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center hidden">
+                    <div class="flex flex-col items-center">
+                        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-600 mb-2"></i>
+                        <span class="text-sm font-medium text-gray-600">Processing...</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
 
     <script>
-        // 這裡可以寫簡單的 JS，例如模擬後端連線檢查
-        console.log("System initialized.");
-        console.log("Target Backend: Zeabur Node.js");
+        // ==========================================
+        // 設定區 (Configuration)
+        // ==========================================
+        // TODO: 請替換為您的 Zeabur 後端網址
+        const BACKEND_URL = 'https://您的專案名稱.zeabur.app'; 
+        
+        let CURRENT_TOKEN = localStorage.getItem('cms_token');
+
+        // ==========================================
+        // 核心邏輯 (Core Logic)
+        // ==========================================
+
+        // 初始化
+        window.onload = async () => {
+            // 1. 檢查 URL 是否有帶 Token (剛登入回來)
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenFromUrl = urlParams.get('token');
+
+            if (tokenFromUrl) {
+                CURRENT_TOKEN = tokenFromUrl;
+                localStorage.setItem('cms_token', tokenFromUrl);
+                // 清除 URL 參數，讓網址好看一點
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            // 2. 判斷顯示哪個畫面
+            if (CURRENT_TOKEN) {
+                showDashboard();
+                await fetchUserInfo();
+                
+                // 嘗試還原上次輸入的設定
+                document.getElementById('input-owner').value = localStorage.getItem('last_owner') || '';
+                document.getElementById('input-repo').value = localStorage.getItem('last_repo') || '';
+                document.getElementById('input-path').value = localStorage.getItem('last_path') || '';
+
+            } else {
+                showLogin();
+            }
+        };
+
+        // 登入
+        function handleLogin() {
+            if (BACKEND_URL.includes('您的專案名稱')) {
+                alert('請先編輯 HTML 檔案，設定正確的 BACKEND_URL！');
+                return;
+            }
+            window.location.href = `${BACKEND_URL}/auth/login`;
+        }
+
+        // 登出
+        function logout() {
+            localStorage.removeItem('cms_token');
+            location.reload();
+        }
+
+        // 畫面切換
+        function showLogin() {
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('dashboard-view').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.remove('hidden');
+        }
+
+        // 取得使用者資訊
+        async function fetchUserInfo() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/me`, {
+                    headers: { 'Authorization': `Bearer ${CURRENT_TOKEN}` }
+                });
+                if (!res.ok) throw new Error('Unauthorized');
+                const data = await res.json();
+                document.getElementById('user-display').innerHTML = `<i class="fa-solid fa-user mr-2"></i>${data.user}`;
+            } catch (error) {
+                console.error(error);
+                logout(); // Token 失效，強制登出
+            }
+        }
+
+        // 讀取檔案
+        async function loadFile() {
+            const owner = document.getElementById('input-owner').value.trim();
+            const repo = document.getElementById('input-repo').value.trim();
+            const path = document.getElementById('input-path').value.trim();
+
+            if (!owner || !repo || !path) {
+                showToast('請填寫完整資訊 (Owner, Repo, Path)', 'error');
+                return;
+            }
+
+            // 儲存設定方便下次使用
+            localStorage.setItem('last_owner', owner);
+            localStorage.setItem('last_repo', repo);
+            localStorage.setItem('last_path', path);
+
+            setLoading(true);
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/${owner}/${repo}/content?path=${path}`, {
+                    headers: { 'Authorization': `Bearer ${CURRENT_TOKEN}` }
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || '讀取失敗');
+                }
+
+                const data = await res.json();
+                
+                // 判斷是否為 JSON，如果是物件就轉字串，如果是純文字就直接顯示
+                let contentToShow = data;
+                if (typeof data === 'object') {
+                    contentToShow = JSON.stringify(data, null, 2); // 格式化 JSON
+                }
+
+                document.getElementById('code-editor').value = contentToShow;
+                document.getElementById('current-file-label').textContent = `${owner}/${repo}/${path}`;
+                
+                // 啟用儲存按鈕
+                const saveBtn = document.getElementById('btn-save');
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                showToast('檔案讀取成功', 'success');
+
+            } catch (error) {
+                showToast(error.message, 'error');
+                document.getElementById('code-editor').value = '';
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // 儲存檔案
+        async function saveFile() {
+            const owner = document.getElementById('input-owner').value.trim();
+            const repo = document.getElementById('input-repo').value.trim();
+            const path = document.getElementById('input-path').value.trim();
+            const rawContent = document.getElementById('code-editor').value;
+
+            if (!confirm(`確定要將變更寫入 ${path} 嗎？此操作將會產生一個新的 Commit。`)) return;
+
+            setLoading(true);
+            try {
+                // 嘗試解析 JSON，如果是 JSON 檔就傳物件，否則傳字串
+                let contentPayload = rawContent;
+                try {
+                    contentPayload = JSON.parse(rawContent);
+                } catch (e) {
+                    // 不是 JSON，那就當作純文字
+                }
+
+                const res = await fetch(`${BACKEND_URL}/api/${owner}/${repo}/content`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${CURRENT_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        path: path,
+                        content: contentPayload,
+                        message: `Update ${path} via CMS Dashboard`
+                    })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || '儲存失敗');
+                }
+
+                showToast('檔案儲存成功！', 'success');
+
+            } catch (error) {
+                showToast(`儲存失敗: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // 工具函式
+        function setLoading(isLoading) {
+            const overlay = document.getElementById('loading-overlay');
+            if (isLoading) overlay.classList.remove('hidden');
+            else overlay.classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = type === 'success' ? 'bg-green-500' : (type === 'error' ? 'bg-red-500' : 'bg-gray-800');
+            
+            toast.className = `${bgClass} text-white px-4 py-3 rounded shadow-lg flex items-center transform transition-all translate-x-full`;
+            toast.innerHTML = `
+                <i class="fa-solid ${type === 'success' ? 'fa-check' : (type === 'error' ? 'fa-circle-exclamation' : 'fa-info-circle')} mr-2"></i>
+                <span class="text-sm font-medium">${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            // 動畫進入
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+
+            // 自動消失
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
     </script>
 </body>
 </html>
